@@ -2,9 +2,10 @@ import React, { Component } from 'react';
 import './App.css';
 
 class Todo {
-  constructor(name, completed) {
+  constructor(name) {
     this.name = name;
-    this.completed = completed;
+    this.completed = false;
+    this.isEditing = false;
   }
 }
 
@@ -14,9 +15,10 @@ class App extends Component {
     this.state = {
       newTodo: '',
       filter: 'all',
+      editingTodo: null,
       todoCollection: [
-        new Todo("todo 1", false),
-        new Todo("todo 12", false)
+        new Todo("todo 1"),
+        new Todo("todo 12")
       ]
     };
 
@@ -25,17 +27,71 @@ class App extends Component {
     this.checkAll = this.checkAll.bind(this);
     this.removeCompleted = this.removeCompleted.bind(this);
     this.filterChange = this.filterChange.bind(this);
+    this.editTodo = this.editTodo.bind(this);
+    this.handleTodoEdit = this.handleTodoEdit.bind(this);
+    this.handleTodoBlur = this.handleTodoBlur.bind(this);
+    this.handleTodoKeyPress = this.handleTodoKeyPress.bind(this);
+  }
+
+  editTodo(index) {
+    this.setState({
+      editingTodo: this.state.todoCollection[index].name,
+      todoCollection: [
+        ...this.state.todoCollection.slice(0, index),
+        {
+          ...this.state.todoCollection[index],
+          isEditing: true
+        },
+        ...this.state.todoCollection.slice(index + 1, this.state.todoCollection.length)
+      ]
+    });
+  }
+
+  handleTodoKeyPress(event, index) {
+    if (event.key === 'Enter') {
+      this.setState({
+        todoCollection: [
+          ...this.state.todoCollection.slice(0, index),
+          {
+            ...this.state.todoCollection[index],
+            name: this.state.editingTodo,
+            isEditing: false
+          },
+          ...this.state.todoCollection.slice(index + 1, this.state.todoCollection.length)
+        ],
+        editingTodo: null
+      });
+    }
+    else if (event.keyCode === 27) {
+      this.setState({
+        todoCollection: this.state.todoCollection.map(todo => { return { ...todo, isEditing: false }; }),
+        editingTodo: null
+      });
+    }
+  }
+
+  handleTodoEdit(event) {
+    this.setState({ editingTodo: event.target.value });
+  }
+
+  handleTodoBlur() {
+    this.setState({
+      todoCollection: this.state.todoCollection.map(todo => { return { ...todo, isEditing: false }; })
+    });
   }
 
   handleChange(event) {
     this.setState({ newTodo: event.target.value });
   }
 
-  todoChange(event, index) {
+  todoChange(index) {
     this.setState({
       todoCollection: [
         ...this.state.todoCollection.slice(0, index),
-        new Todo(this.state.todoCollection[index].name, !this.state.todoCollection[index].completed),
+        {
+          ...this.state.todoCollection[index],
+          completed: !this.state.todoCollection[index].completed
+        },
         ...this.state.todoCollection.slice(index + 1, this.state.todoCollection.length)
       ]
     })
@@ -50,7 +106,7 @@ class App extends Component {
   handleKeyPress(e) {
     if (e.key === 'Enter') {
       this.setState({
-        todoCollection: [...this.state.todoCollection, new Todo(this.state.newTodo, false)],
+        todoCollection: [...this.state.todoCollection, new Todo(this.state.newTodo)],
         newTodo: ''
       });
     }
@@ -64,20 +120,8 @@ class App extends Component {
 
   checkAll() {
     this.setState({
-      todoCollection: this.state.todoCollection.map(todo => new Todo(todo.name, true))
+      todoCollection: this.state.todoCollection.map(todo => { return { ...todo, completed: true }; })
     });
-  }
-
-  renderTodoList(todos) {
-    return (
-      <ul className="list-group">
-        {todos.map((todo, i) => (
-          <li key={i} className="list-group-item">
-            <input type="checkbox" checked={todo.completed} onChange={e => this.todoChange(e, i)} /> {todo.name}
-          </li>
-        ))}
-      </ul>
-    )
   }
 
   render() {
@@ -91,9 +135,7 @@ class App extends Component {
 
     return (
       <div className="card my-5">
-        <div className="card-header">
-          Todos
-          </div>
+        <div className="card-header">Todos</div>
         <div className="card-body">
 
           <div className="mb-3 d-flex">
@@ -108,7 +150,24 @@ class App extends Component {
             </div>
           </div>
 
-          {this.renderTodoList(todos)}
+          <ul className="list-group">
+            {todos.map((todo, i) => (
+              <li key={i} className="list-group-item form-inline d-flex">
+                <input className="mr-2" type="checkbox" checked={todo.completed} onChange={() => this.todoChange(i)} />
+                {todo.isEditing ?
+                  <input
+                    className="form-control flex-fill"
+                    value={this.state.editingTodo}
+                    autoFocus
+                    onChange={this.handleTodoEdit}
+                    onBlur={this.handleTodoBlur}
+                    onKeyPress={e => this.handleTodoKeyPress(e, i)} /> :
+                  <div className="text-nowrap flex-fill" onDoubleClick={() => this.editTodo(i)}>{todo.name}</div>
+                }
+
+              </li>
+            ))}
+          </ul>
 
         </div>
         <div className="card-footer d-flex">
